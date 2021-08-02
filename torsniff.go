@@ -1,11 +1,11 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
-    "bufio"
+	"database/sql"
 	"fmt"
 	"io/ioutil"
-    "database/sql"
 	"log"
 	"net"
 	"os"
@@ -16,15 +16,15 @@ import (
 	"time"
 
 	"github.com/marksamman/bencode"
+	_ "github.com/mattn/go-sqlite3"
 	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	"go.etcd.io/etcd/pkg/fileutil"
-    _ "github.com/mattn/go-sqlite3"
 )
 
 const (
 	directory = "torrents"
-    minLength = 10 * 1024 * 1024 //10M
+	minLength = 10 * 1024 * 1024 //10M
 )
 
 var keywords []string
@@ -46,17 +46,17 @@ type torrent struct {
 }
 
 func ByteCountSI(b int64) string {
-    const unit = 1024
-    if b < unit {
-        return fmt.Sprintf("%dB", b)
-    }
-    div, exp := int64(unit), 0
-    for n := b / unit; n >= unit; n /= unit {
-        div *= unit
-        exp++
-    }
-    return fmt.Sprintf("%.1f%c",
-        float64(b)/float64(div), "kMGTPE"[exp])
+	const unit = 1024
+	if b < unit {
+		return fmt.Sprintf("%dB", b)
+	}
+	div, exp := int64(unit), 0
+	for n := b / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f%c",
+		float64(b)/float64(div), "kMGTPE"[exp])
 }
 
 func (t *torrent) String() string {
@@ -65,12 +65,10 @@ func (t *torrent) String() string {
 		fmt.Sprintf("magnet:?xt=urn:btih:%s", t.infohashHex),
 		t.name,
 		t.length,
-        ByteCountSI(t.length),
+		ByteCountSI(t.length),
 		len(t.files),
 	)
 }
-
-
 
 func parseTorrent(meta []byte, infohashHex string) (*torrent, error) {
 	dict, err := bencode.Decode(bytes.NewBuffer(meta))
@@ -131,45 +129,45 @@ func parseTorrent(meta []byte, infohashHex string) (*torrent, error) {
 }
 
 type torsniff struct {
-	laddr      string
-	maxFriends int
-	maxPeers   int
-	secret     string
-	timeout    time.Duration
-	blacklist  *blackList
-	dir        string
-    keywordFile string
-    databaseFile string
-    db          *sql.DB
+	laddr        string
+	maxFriends   int
+	maxPeers     int
+	secret       string
+	timeout      time.Duration
+	blacklist    *blackList
+	dir          string
+	keywordFile  string
+	databaseFile string
+	db           *sql.DB
 }
 
-func readKeywords(keywordFile string){
-    f, err := os.Open(keywordFile)
-    if err != nil {
-        fmt.Println("Failed to open file:", keywordFile)
-        return
-    }
-    defer f.Close()
-    scanner := bufio.NewScanner(f)
-    for scanner.Scan() {
-        line := scanner.Text()
-        keywords = append(keywords,strings.TrimSpace(line))
-    }
+func readKeywords(keywordFile string) {
+	f, err := os.Open(keywordFile)
+	if err != nil {
+		fmt.Println("Failed to open file:", keywordFile)
+		return
+	}
+	defer f.Close()
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := scanner.Text()
+		keywords = append(keywords, strings.TrimSpace(line))
+	}
 }
 
 func (t *torsniff) run() error {
 
-    readKeywords(t.keywordFile)
-    db, err := sql.Open("sqlite3", t.databaseFile)
-    if err != nil{
-        log.Println("Failed to open database file:",t.databaseFile)
-        return err
-    }
-    //create table
-    stmt,_ := db.Prepare(`CREATE TABLE IF NOT EXISTS torrent(hash TEXT PRIMARY KEY,name TEXT,length INTEGER)`)
-    stmt.Exec()
-    t.db = db
-    defer db.Close()
+	readKeywords(t.keywordFile)
+	db, err := sql.Open("sqlite3", t.databaseFile)
+	if err != nil {
+		log.Println("Failed to open database file:", t.databaseFile)
+		return err
+	}
+	//create table
+	stmt, _ := db.Prepare(`CREATE TABLE IF NOT EXISTS torrent(hash TEXT PRIMARY KEY,name TEXT,length INTEGER)`)
+	stmt.Exec()
+	t.db = db
+	defer db.Close()
 
 	tokens := make(chan struct{}, t.maxPeers)
 
@@ -201,25 +199,21 @@ func (t *torsniff) run() error {
 }
 
 func interested(torrent *torrent) bool {
-    if torrent.length < minLength{
-        return false
-    }
-    name := strings.ToLower(torrent.name)
-    for _,k := range keywords{
-        if strings.Contains(name,k){
-            return true
-        }
-    }
-    return false
+	if torrent.length < minLength {
+		return false
+	}
+	name := strings.ToLower(torrent.name)
+	for _, k := range keywords {
+		if strings.Contains(name, k) {
+			return true
+		}
+	}
+	return false
 }
 func (t *torsniff) work(ac *announcement, tokens chan struct{}) {
 	defer func() {
 		<-tokens
 	}()
-
-	if t.isTorrentExist(ac.infohashHex) {
-		return
-	}
 
 	peerAddr := ac.peer.String()
 	if t.blacklist.has(peerAddr) {
@@ -235,20 +229,19 @@ func (t *torsniff) work(ac *announcement, tokens chan struct{}) {
 		return
 	}
 
-    torrent, err := parseTorrent(meta, ac.infohashHex)
-    if err != nil {
-        return
-    }
-    log.Println(torrent)
-    stmt,err := t.db.Prepare("INSERT INTO torrent(hash,name,length) VALUES(?,?,?)")
-    stmt.Exec(torrent.infohashHex,torrent.name,torrent.length)
-    if interested(torrent){
-        log.Println("{SAVED}:",torrent.name)
-        if err := t.saveTorrent(ac.infohashHex, meta); err != nil {
-            return
-        }
-        
-    }
+	torrent, err := parseTorrent(meta, ac.infohashHex)
+	if err != nil {
+		return
+	}
+	log.Println(torrent)
+	t.db.Exec("INSERT INTO torrent(hash,name,length) VALUES(?,?,?)", torrent.infohashHex, torrent.name, torrent.length)
+	if interested(torrent) {
+		log.Println("[SAVED]:", torrent.name)
+		if err := t.saveTorrent(ac.infohashHex, meta); err != nil {
+			return
+		}
+
+	}
 
 }
 
@@ -278,13 +271,9 @@ func (t *torsniff) saveTorrent(infohashHex string, data []byte) error {
 	}
 	defer f.Close()
 
-	_, err = f.Write(bencode.Encode(map[string]interface{}{
-		"info": d,
-	}))
-	if err != nil {
+	if _, err = f.Write(bencode.Encode(map[string]interface{}{"info": d})); err != nil {
 		return err
 	}
-
 	return nil
 }
 
@@ -304,8 +293,8 @@ func main() {
 	var dir string
 	var verbose bool
 	var friends int
-    var keywordFile string
-    var databaseFile string
+	var keywordFile string
+	var databaseFile string
 
 	home, err := homedir.Dir()
 	userHome := path.Join(home, directory)
@@ -331,15 +320,15 @@ func main() {
 		}
 
 		p := &torsniff{
-			laddr:      net.JoinHostPort(addr, strconv.Itoa(int(port))),
-			timeout:    timeout,
-			maxFriends: friends,
-			maxPeers:   peers,
-			secret:     string(randBytes(20)),
-			dir:        absDir,
-			blacklist:  newBlackList(5*time.Minute, 1000),
-            keywordFile:keywordFile,
-            databaseFile:databaseFile,
+			laddr:        net.JoinHostPort(addr, strconv.Itoa(int(port))),
+			timeout:      timeout,
+			maxFriends:   friends,
+			maxPeers:     peers,
+			secret:       string(randBytes(20)),
+			dir:          absDir,
+			blacklist:    newBlackList(5*time.Minute, 1000),
+			keywordFile:  keywordFile,
+			databaseFile: databaseFile,
 		}
 		return p.run()
 	}
@@ -351,8 +340,8 @@ func main() {
 	root.Flags().DurationVarP(&timeout, "timeout", "t", 10*time.Second, "max time allowed for downloading torrents")
 	root.Flags().StringVarP(&dir, "dir", "d", userHome, "the directory to store the torrents")
 	root.Flags().StringVarP(&keywordFile, "kwfile", "k", "keywords.txt", "the words file you interested in")
-    root.Flags().StringVarP(&databaseFile, "database", "o", "torrentdata.db", "the output database")
-    root.Flags().BoolVarP(&verbose, "verbose", "v", true, "run in verbose mode")
+	root.Flags().StringVarP(&databaseFile, "database", "o", "torrentdata.db", "the output database")
+	root.Flags().BoolVarP(&verbose, "verbose", "v", true, "run in verbose mode")
 
 	if err := root.Execute(); err != nil {
 		fmt.Println(fmt.Errorf("could not start: %s", err))
