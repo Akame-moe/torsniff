@@ -17,7 +17,7 @@ Just download latest torsniff from [releases](https://github.com/fanpei91/torsni
 ## Usage
 
 ```
-$ ./torsniff -h
+$ ./btsniffer -h
 
 Usage:
   torsniff [flags]
@@ -30,13 +30,15 @@ Flags:
   -e, --peers int          max peers to connect to download torrents (default 400)
   -p, --port uint16        listen on given port (default 6881)
   -t, --timeout duration   max time allowed for downloading torrents (default 10s)
+  -k --kwfile string       the keywords file
+  -o --database string     the output database, all torrent will be saved here
   -v, --verbose            run in verbose mode (default true)
 ```
 
 ## Quick start
 Use default flags:
 
-`./torsniff`
+`./btsniffer`
 
 ## Requirements
 
