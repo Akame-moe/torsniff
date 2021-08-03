@@ -36,7 +36,7 @@ jobs:
       - name: Upload binaries to release
         uses: svenstaro/upload-release-action@v2
         #upload only if it was tagged https://github.community/t/how-to-run-github-actions-workflow-only-for-new-tags/16075/20
-        if: ${{ startsWith(github.tag, "v") }} 
+        if: ${{ startsWith(github.tag, 'v') }} 
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: btsniffer.zip
