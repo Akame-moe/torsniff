@@ -10,9 +10,12 @@ torsniff is a torrent sniffer, it sniffs torrents that people are using to downl
 A torrent has valuable information, so you can use torsniff to build your own torrent database(e.g: The Pirate Bay), or to do data mining and analyzing.
 
 
-## Installation
+## Compiling
 
-Just download latest torsniff from [releases](https://github.com/fanpei91/torsniff/releases) directly. 
+> Please ensure you have golang installed in your system environment
+```bash
+./build.sh
+```
 
 ## Usage
 
@@ -30,8 +33,8 @@ Flags:
   -e, --peers int          max peers to connect to download torrents (default 400)
   -p, --port uint16        listen on given port (default 6881)
   -t, --timeout duration   max time allowed for downloading torrents (default 10s)
-  -k --kwfile string       the keywords file
-  -o --database string     the output database, all torrent will be saved here
+  -k, --kwfile string      the keywords file
+  -o, --database string    the output database, all torrent will be saved here
   -v, --verbose            run in verbose mode (default true)
 ```
 
@@ -44,7 +47,7 @@ Use default flags:
 
 * A host having a public IP(recommended), or UDP port forwarding/port mapping in private network/NAT
 * Allow UDP traffic get through firewall
-* Your ISP/Hosting Provider allows BitTorrent traffic(torsniff works on [vultr.com](https://www.vultr.com/?ref=7172229))
+* Your ISP/Hosting Provider allows BitTorrent traffic(torsniff works on [vultr.com](https://www.vultr.com/?ref=7114970))
 
 ## Protocols
 - [DHT Protocol](http://www.bittorrent.org/beps/bep_0005.html)

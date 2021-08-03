@@ -3,6 +3,11 @@ on:
   push:
     branches: 
       - master
+    paths:
+     - "**/*.go"
+     - "go.mod"
+     - "go.sum"
+     - ".github/workflows/*.yml"
 
 env:
   GO111MODULE: on
@@ -26,3 +31,15 @@ jobs:
       - name: Build
         run: |
           ./build.sh
+          zip btsniffer.zip btsniffer
+
+      - name: Upload binaries to release
+        uses: svenstaro/upload-release-action@v2
+        #upload only if it was tagged https://github.community/t/how-to-run-github-actions-workflow-only-for-new-tags/16075/20
+        if: ${{ startsWith(github.tag, "v") }} 
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: btsniffer.zip
+          asset_name: btsniffer.zip
+          tag: ${{ github.ref }}
+          body: "${{ github.tag }} was released"

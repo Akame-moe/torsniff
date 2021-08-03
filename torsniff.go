@@ -265,7 +265,7 @@ func (t *torsniff) saveTorrent(infohashHex string, data []byte) error {
 		return err
 	}
 
-	f, err := fileutil.TryLockFile(name, os.O_WRONLY|os.O_CREATE, 0755)
+	f, err := fileutil.TryLockFile(name, os.O_WRONLY|os.O_CREATE, 0744)
 	if err != nil {
 		return err
 	}
@@ -278,7 +278,7 @@ func (t *torsniff) saveTorrent(infohashHex string, data []byte) error {
 }
 
 func (t *torsniff) torrentPath(infohashHex string) (name string, dir string) {
-	dir = path.Join(t.dir, infohashHex[:2], infohashHex[len(infohashHex)-2:])
+	dir = path.Join(t.dir, infohashHex[:2], infohashHex[2:4])
 	name = path.Join(dir, infohashHex+".torrent")
 	return
 }
